@@ -1,13 +1,13 @@
-from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey
-from database import Base
+from sqlalchemy import Column, Integer, Float, String, ForeignKey
 from sqlalchemy.orm import relationship
+from database import Base
+
 
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String)
-    email = Column(String, unique=True)
+    name = Column(String, unique=True, index=True)
 
     expenses = relationship("Expense", back_populates="owner")
     incomes = relationship("Income", back_populates="owner")
@@ -19,9 +19,8 @@ class Expense(Base):
     id = Column(Integer, primary_key=True, index=True)
     amount = Column(Float)
     category = Column(String)
-    date = Column(Date)
-    user_id = Column(Integer, ForeignKey("users.id"))
 
+    user_id = Column(Integer, ForeignKey("users.id"))
     owner = relationship("User", back_populates="expenses")
 
 
@@ -31,7 +30,6 @@ class Income(Base):
     id = Column(Integer, primary_key=True, index=True)
     amount = Column(Float)
     source = Column(String)
-    date = Column(Date)
-    user_id = Column(Integer, ForeignKey("users.id"))
 
+    user_id = Column(Integer, ForeignKey("users.id"))
     owner = relationship("User", back_populates="incomes")

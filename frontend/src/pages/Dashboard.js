@@ -1,109 +1,177 @@
 import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import API from "../services/api";
 
 function Dashboard() {
   const [expenses, setExpenses] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [aiInsight, setAiInsight] = useState("");
+  const [loadingAI, setLoadingAI] = useState(false);
 
+  // ---------------------------
+  // Fetch Data
+  // ---------------------------
   useEffect(() => {
     fetchExpenses();
     fetchSummary();
   }, []);
 
   const fetchExpenses = async () => {
-    const res = await API.get("/expenses/1");
-    setExpenses(res.data);
+    try {
+      const res = await API.get("/expenses/1");
+      setExpenses(res.data);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const fetchSummary = async () => {
-    const res = await API.get("/summary/1");
-    setSummary(res.data);
+    try {
+      const res = await API.get("/summary/1");
+      setSummary(res.data);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
+  // ---------------------------
+  // AI Streaming (Fixed)
+  // ---------------------------
+  const fetchAIStream = async () => {
+    try {
+      setAiInsight("");
+      setLoadingAI(true);
+
+      const response = await fetch("http://127.0.0.1:8000/ai-stream/1");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      let fullText = "";
+
+      // Collect full streamed text
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        fullText += decoder.decode(value);
+      }
+
+      // Safe typing effect (no skipped letters, no undefined)
+      let index = 0;
+
+      const interval = setInterval(() => {
+        if (index >= fullText.length) {
+          clearInterval(interval);
+          setLoadingAI(false);
+          return;
+        }
+
+        setAiInsight(fullText.slice(0, index + 1));
+        index++;
+      }, 30); // increase number for slower typing
+
+    } catch (error) {
+      console.error(error);
+      setLoadingAI(false);
+    }
+  };
+
+  // ---------------------------
+  // UI
+  // ---------------------------
   return (
-    <motion.div
-      initial={{ opacity: 0, x: 100 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.8 }}
-      className="bg-white/5 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-blue-500/20 hover:shadow-blue-500/40 transition duration-300"
+    <div
+      style={{
+        minHeight: "0vh",
+        borderRadius: "30px",
+        padding: "40px",
+        background: "linear-gradient(to right, #1e1b4b, #000000)",
+        color: "white",
+        fontFamily: "Arial",
+      }}
     >
-      <h2 className="text-3xl font-bold mb-6 text-blue-400">
-        Financial Dashboard
-      </h2>
+      <h1 style={{ marginBottom: "30px" }}>AI Finance Copilot 🚀</h1>
 
-      {summary && (
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          
-          {/* Income */}
-          <motion.div
-            whileHover={{ scale: 1.08 }}
-            className="bg-gradient-to-r from-green-500/20 to-green-700/20 p-4 rounded-xl border border-green-400/20"
+      {/* TOP TWO CARDS ONLY */}
+      <div style={{ display: "flex", gap: "40px" }}>
+
+        {/* LEFT CARD */}
+        <div
+          style={{
+            flex: 1,
+            background: "rgba(255,255,255,0.05)",
+            padding: "30px",
+            borderRadius: "20px",
+          }}
+        >
+          <h2>Financial Dashboard</h2>
+
+          {summary && (
+            <>
+              <p><strong>Total Income:</strong> ₹{Number(summary.total_income).toLocaleString("en-IN")}</p>
+              <p><strong>Total Expense:</strong> ₹{Number(summary.total_expense).toLocaleString("en-IN")}</p>
+              <p><strong>Savings:</strong> ₹{Number(summary.savings).toLocaleString("en-IN")}</p>
+              <p><strong>Savings %:</strong> {summary.savings_percent}%</p>
+              <p><strong>Financial Score:</strong> {summary.financial_score}/100</p>
+            </>
+          )}
+
+          <button
+            onClick={fetchAIStream}
+            style={{
+              marginTop: "20px",
+              padding: "12px 20px",
+              background: "#7c3aed",
+              border: "none",
+              borderRadius: "8px",
+              color: "white",
+              cursor: "pointer",
+              fontWeight: "bold",
+            }}
           >
-            <p className="text-sm text-gray-300">Total Income</p>
-            <p className="text-2xl font-bold text-green-400">
-              ₹{summary.total_income}
-            </p>
-          </motion.div>
+            {loadingAI ? "Generating..." : "Generate AI Insight"}
+          </button>
+        </div>
 
-          {/* Expense */}
-          <motion.div
-            whileHover={{ scale: 1.08 }}
-            className="bg-gradient-to-r from-red-500/20 to-red-700/20 p-4 rounded-xl border border-red-400/20"
-          >
-            <p className="text-sm text-gray-300">Total Expense</p>
-            <p className="text-2xl font-bold text-red-400">
-              ₹{summary.total_expense}
-            </p>
-          </motion.div>
+        {/* RIGHT CARD */}
+        <div
+          style={{
+            flex: 1,
+            background: "rgba(255,255,255,0.05)",
+            padding: "30px",
+            borderRadius: "20px",
+          }}
+        >
+          <h2>Recent Expenses</h2>
 
-          {/* Savings */}
-          <motion.div
-            whileHover={{ scale: 1.08 }}
-            className="bg-gradient-to-r from-blue-500/20 to-blue-700/20 p-4 rounded-xl border border-blue-400/20"
-          >
-            <p className="text-sm text-gray-300">Savings</p>
-            <p className="text-2xl font-bold text-blue-400">
-              ₹{summary.savings}
-            </p>
-          </motion.div>
+          {expenses.length === 0 ? (
+            <p>No expenses yet.</p>
+          ) : (
+            expenses.map((expense) => (
+              <div key={expense.id} style={{ marginBottom: "10px" }}>
+                {expense.category} — ₹{Number(expense.amount).toLocaleString("en-IN")}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
 
-          {/* Savings % */}
-          <motion.div
-            whileHover={{ scale: 1.08 }}
-            className="bg-gradient-to-r from-purple-500/20 to-purple-700/20 p-4 rounded-xl border border-purple-400/20"
-          >
-            <p className="text-sm text-gray-300">Savings %</p>
-            <p className="text-2xl font-bold text-purple-400">
-              {summary.savings_percent}%
-            </p>
-          </motion.div>
-
+      {/* SEPARATE AI DIV BELOW */}
+      {aiInsight && (
+        <div
+          style={{
+            marginTop: "50px",
+            background: "rgba(255,255,255,0.08)",
+            padding: "30px",
+            borderRadius: "20px",
+            width: "100%",
+          }}
+        >
+          <h2>AI Financial Insight</h2>
+          <p style={{ whiteSpace: "pre-line", fontSize: "18px" }}>
+            {aiInsight}
+          </p>
         </div>
       )}
-
-      {/* Expenses List */}
-      <h3 className="text-xl font-semibold mb-4 text-gray-200">
-        Recent Expenses
-      </h3>
-
-      <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-        {expenses.map((expense) => (
-          <motion.div
-            key={expense.id}
-            whileHover={{ scale: 1.03 }}
-            className="bg-gray-900/70 p-4 rounded-lg border border-gray-700 hover:border-blue-500 transition duration-200"
-          >
-            <div className="flex justify-between">
-              <span className="text-gray-300">{expense.category}</span>
-              <span className="font-semibold text-white">
-                ₹{expense.amount}
-              </span>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-    </motion.div>
+    </div>
   );
 }
 
