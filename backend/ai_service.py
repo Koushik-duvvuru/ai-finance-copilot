@@ -9,22 +9,36 @@ client = OpenAI(
     base_url="https://api.groq.com/openai/v1"
 )
 
-
 def calculate_financial_score(summary):
-    score = 50
+    score = 0
 
-    if summary["savings_percent"] >= 30:
+    savings_percent = summary["savings_percent"]
+    total_income = summary["total_income"]
+    total_expense = summary["total_expense"]
+
+    # Savings percentage weight (50 points)
+    if savings_percent >= 40:
+        score += 50
+    elif savings_percent >= 25:
+        score += 40
+    elif savings_percent >= 15:
         score += 30
-    elif summary["savings_percent"] >= 20:
+    elif savings_percent >= 5:
         score += 20
-    elif summary["savings_percent"] >= 10:
+    else:
         score += 10
 
-    if summary["total_expense"] > summary["total_income"]:
-        score -= 20
+    # Expense control weight (30 points)
+    if total_expense < total_income:
+        score += 30
+    else:
+        score += 5
 
-    return min(max(score, 0), 100)
+    # Income existence weight (20 points)
+    if total_income > 0:
+        score += 20
 
+    return min(score, 100)
 
 def generate_financial_insight_stream(summary):
 
